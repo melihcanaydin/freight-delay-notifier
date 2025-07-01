@@ -2,7 +2,7 @@
 FROM node:20-bookworm AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci
 COPY . .
 RUN npm run build
 
@@ -13,6 +13,8 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/package.json ./package.json
 COPY --from=build /app/.env ./
+
+RUN npm prune --production
 
 # Create a non-root user
 RUN useradd -m appuser
