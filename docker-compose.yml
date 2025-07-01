@@ -1,0 +1,62 @@
+version: "3.9"
+
+services:
+  freight-delay-monitor:
+    platform: linux/amd64
+    build: .
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - temporal-server
+    environment:
+      - NODE_ENV=development
+      - TEMPORAL_SERVER_URL=temporal-server:7233
+      - TEMPORAL_NAMESPACE=default
+      - TEMPORAL_TASK_QUEUE=FREIGHT_DELAY_TASK_QUEUE
+    container_name: freight-delay-monitor-app
+    command: ["sh", "-c", "sleep 10 && node dist/main.js"]
+
+  postgres-database:
+    platform: linux/amd64
+    image: postgres:13
+    environment:
+      POSTGRES_USER: temporal
+      POSTGRES_PASSWORD: mysecurepassword
+      POSTGRES_DB: temporal
+    ports:
+      - "5432:5432"
+    container_name: freight-delay-postgres-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U temporal -d temporal"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  temporal-server:
+    platform: linux/amd64
+    image: temporalio/auto-setup
+    ports:
+      - "7233:7233"
+    environment:
+      - DB=postgres12
+      - DB_PORT=5432
+      - DB_USER=temporal
+      - DB_PWD=mysecurepassword
+      - DB_NAME=temporal
+      - POSTGRES_SEEDS=postgres-database
+      - POSTGRES_PWD=mysecurepassword
+    depends_on:
+      - postgres-database
+    container_name: freight-delay-temporal-server
+
+volumes:
+  postgres_data:
+
+networks:
+  default:
+    name: freight-delay-network
+    driver: bridge
